@@ -3,7 +3,7 @@
 */
 
 exports.appCache = appCache;
-var fs = require('q-fs');
+var fs = require('q-io/fs');
 var Q = require('qq');
 function identity($) {return $;}
 
@@ -61,7 +61,7 @@ function appCacheTemplate() {
           "syntaxhighlighter/syntaxhighlighter-combined.js",
           "../angular.min.js",
           "docs-combined.js",
-          "docs-keywords.js",
+          "docs-data.js",
           "docs-combined.css",
           "syntaxhighlighter/syntaxhighlighter-combined.css",
           "img/texture_1.png",

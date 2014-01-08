@@ -43,7 +43,7 @@ http://userguide.icu-project.org/locale ICU } website for more information about
 **Supported locales in Angular**
 Angular separates number and datetime format rule sets into different files, each file for a
 particular locale. You can find a list of currently supported locales {@link
-https://github.com/angular/angular.js/tree/master/i18n/locale here}
+https://github.com/angular/angular.js/tree/master/src/ngLocale here}
 # Providing locale rules to Angular
 
 There are two approaches to providing locale rules to Angular:
@@ -53,25 +53,25 @@ There are two approaches to providing locale rules to Angular:
 You can pre-bundle the desired locale file with Angular by concatenating the content of the
 locale-specific file to the end of `angular.js` or `angular.min.js` file.
 
-For example on *nix, to create a an angular.js file that contains localization rules for german
+For example on *nix, to create an angular.js file that contains localization rules for german
 locale, you can do the following:
 
-`cat angular.js i18n/angular-locale_de-ge.js > angular_de-ge.js`
+`cat angular.js i18n/angular-locale_de-de.js > angular_de-de.js`
 
-When the application containing `angular_de-ge.js` script instead of the generic angular.js script
+When the application containing `angular_de-de.js` script instead of the generic angular.js script
 starts, Angular is automatically pre-configured with localization rules for the german locale.
 
 **2. Including locale js script in index.html page**
 
 You can also include the locale specific js file in the index.html page. For example, if one client
-requires German locale, you would serve index_de-ge.html which will look something like this:
+requires German locale, you would serve index_de-de.html which will look something like this:
 
 <pre>
 <html ng-app>
  <head>
 ….
    <script src="angular.js"></script>
-   <script src="i18n/angular-locale_de-ge.js"></script>
+   <script src="i18n/angular-locale_de-de.js"></script>
 ….
  </head>
 </html>
@@ -97,7 +97,7 @@ locale, it is fine to rely on the default currency symbol. However, if you antic
 in other locales might use your app, you should provide your own currency symbol to make sure the
 actual value is understood.
 
-For example, if you want to display account balance of 1000 dollars with the following binding
+For example, if you want to display an account balance of 1000 dollars with the following binding
 containing currency filter: `{{ 1000 | currency }}`, and your app is currently in en-US locale.
 '$1000.00' will be shown. However, if someone in a different local (say, Japan) views your app, her
 browser will specify the locale as ja, and the balance of '¥1000.00' will be shown instead. This

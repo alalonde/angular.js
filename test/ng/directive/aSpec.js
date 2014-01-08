@@ -1,7 +1,13 @@
 'use strict';
 
 describe('a', function() {
-  var element;
+  var element, $compile, $rootScope;
+
+
+  beforeEach(inject(function(_$compile_, _$rootScope_) {
+    $compile = _$compile_;
+    $rootScope = _$rootScope_;
+  }));
 
 
   afterEach(function(){
@@ -9,8 +15,7 @@ describe('a', function() {
   });
 
 
-  it('should prevent default action to be executed when href is empty',
-      inject(function($rootScope, $compile) {
+  it('should prevent default action to be executed when href is empty', function() {
     var orgLocation = document.location.href,
         preventDefaultCalled = false,
         event;
@@ -42,5 +47,41 @@ describe('a', function() {
     }
 
     expect(document.location.href).toEqual(orgLocation);
-  }));
+  });
+
+
+  it('should prevent IE for changing text content when setting attribute', function() {
+    // see issue #1949
+    element = jqLite('<a href="">hello@you</a>');
+    $compile(element);
+    element.attr('href', 'bye@me');
+
+    expect(element.text()).toBe('hello@you');
+  });
+
+
+  it('should not link and hookup an event if href is present at compile', function() {
+    var jq = jQuery || jqLite;
+    element = jq('<a href="//a.com">hello@you</a>');
+    var linker = $compile(element);
+
+    spyOn(jq.prototype, 'on');
+
+    linker($rootScope);
+
+    expect(jq.prototype.on).not.toHaveBeenCalled();
+  });
+
+
+  it('should not link and hookup an event if name is present at compile', function() {
+    var jq = jQuery || jqLite;
+    element = jq('<a name="bobby">hello@you</a>');
+    var linker = $compile(element);
+
+    spyOn(jq.prototype, 'on');
+
+    linker($rootScope);
+
+    expect(jq.prototype.on).not.toHaveBeenCalled();
+  });
 });

@@ -22,6 +22,7 @@ describe('validate-commit-msg.js', function() {
   describe('validateMessage', function() {
 
     it('should be valid', function() {
+      expect(m.validateMessage('fixup! fix($compile): something')).toBe(VALID);
       expect(m.validateMessage('fix($compile): something')).toBe(VALID);
       expect(m.validateMessage('feat($location): something')).toBe(VALID);
       expect(m.validateMessage('docs($filter): something')).toBe(VALID);
@@ -29,16 +30,19 @@ describe('validate-commit-msg.js', function() {
       expect(m.validateMessage('refactor($httpBackend): something')).toBe(VALID);
       expect(m.validateMessage('test($resource): something')).toBe(VALID);
       expect(m.validateMessage('chore($controller): something')).toBe(VALID);
+      expect(m.validateMessage('chore(foo-bar): something')).toBe(VALID);
+      expect(m.validateMessage('chore(*): something')).toBe(VALID);
+      expect(m.validateMessage('chore(guide/location): something')).toBe(VALID);
+      expect(m.validateMessage('revert(foo): something')).toBe(VALID);
       expect(errors).toEqual([]);
     });
 
 
-    it('should validate 70 characters length', function() {
-      var msg = 'fix($compile): something super mega extra giga tera long, maybe even longer... ' +
-                'way over 80 characters';
+    it('should validate 100 characters length', function() {
+      var msg = "fix($compile): something super mega extra giga tera long, maybe even longer and longer and longer... ";
 
       expect(m.validateMessage(msg)).toBe(INVALID);
-      expect(errors).toEqual(['INVALID COMMIT MSG: is longer than 70 characters !']);
+      expect(errors).toEqual(['INVALID COMMIT MSG: is longer than 100 characters !']);
     });
 
 
@@ -46,7 +50,7 @@ describe('validate-commit-msg.js', function() {
       var msg = 'not correct format';
 
       expect(m.validateMessage(msg)).toBe(INVALID);
-      expect(errors).toEqual(['INVALID COMMIT MSG: does not match "<type>(<scope>): <subject>" !']);
+      expect(errors).toEqual(['INVALID COMMIT MSG: does not match "<type>(<scope>): <subject>" ! was: not correct format']);
     });
 
 

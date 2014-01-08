@@ -1,13 +1,20 @@
+'use strict';
+
+/* global sanitizeText: false */
+
 /**
  * @ngdoc filter
  * @name ngSanitize.filter:linky
  * @function
  *
  * @description
- *   Finds links in text input and turns them into html links. Supports http/https/ftp/mailto and
- *   plain email address links.
+ * Finds links in text input and turns them into html links. Supports http/https/ftp/mailto and
+ * plain email address links.
+ *
+ * Requires the {@link ngSanitize `ngSanitize`} module to be installed.
  *
  * @param {string} text Input text.
+ * @param {string} target Window (_blank|_self|_parent|_top) or named frame to open links in.
  * @returns {string} Html-linkified text.
  *
  * @usage
@@ -24,6 +31,7 @@
              'mailto:us@somewhere.org,\n'+
              'another@somewhere.org,\n'+
              'and one more: ftp://127.0.0.1/.';
+           $scope.snippetWithTarget = 'http://angularjs.org/';
          }
        </script>
        <div ng-controller="Ctrl">
@@ -42,6 +50,15 @@
            <td>
              <div ng-bind-html="snippet | linky"></div>
            </td>
+         </tr>
+         <tr id="linky-target">
+          <td>linky target</td>
+          <td>
+            <pre>&lt;div ng-bind-html="snippetWithTarget | linky:'_blank'"&gt;<br>&lt;/div&gt;</pre>
+          </td>
+          <td>
+            <div ng-bind-html="snippetWithTarget | linky:'_blank'"></div>
+          </td>
          </tr>
          <tr id="escaped-html">
            <td>no filter</td>
@@ -75,20 +92,24 @@
            toBe('new <a href="http://link">http://link</a>.');
          expect(using('#escaped-html').binding('snippet')).toBe('new http://link.');
        });
+
+       it('should work with the target property', function() {
+        expect(using('#linky-target').binding("snippetWithTarget | linky:'_blank'")).
+          toBe('<a target="_blank" href="http://angularjs.org/">http://angularjs.org/</a>');
+       });
      </doc:scenario>
    </doc:example>
  */
-angular.module('ngSanitize').filter('linky', function() {
-  var LINKY_URL_REGEXP = /((ftp|https?):\/\/|(mailto:)?[A-Za-z0-9._%+-]+@)\S*[^\s\.\;\,\(\)\{\}\<\>]/,
+angular.module('ngSanitize').filter('linky', ['$sanitize', function($sanitize) {
+  var LINKY_URL_REGEXP =
+        /((ftp|https?):\/\/|(mailto:)?[A-Za-z0-9._%+-]+@)\S*[^\s.;,(){}<>]/,
       MAILTO_REGEXP = /^mailto:/;
 
-  return function(text) {
+  return function(text, target) {
     if (!text) return text;
     var match;
     var raw = text;
     var html = [];
-    // TODO(vojta): use $sanitize instead
-    var writer = htmlSanitizeWriter(html);
     var url;
     var i;
     while ((match = raw.match(LINKY_URL_REGEXP))) {
@@ -97,13 +118,32 @@ angular.module('ngSanitize').filter('linky', function() {
       // if we did not match ftp/http/mailto then assume mailto
       if (match[2] == match[3]) url = 'mailto:' + url;
       i = match.index;
-      writer.chars(raw.substr(0, i));
-      writer.start('a', {href:url});
-      writer.chars(match[0].replace(MAILTO_REGEXP, ''));
-      writer.end('a');
+      addText(raw.substr(0, i));
+      addLink(url, match[0].replace(MAILTO_REGEXP, ''));
       raw = raw.substring(i + match[0].length);
     }
-    writer.chars(raw);
-    return html.join('');
+    addText(raw);
+    return $sanitize(html.join(''));
+
+    function addText(text) {
+      if (!text) {
+        return;
+      }
+      html.push(sanitizeText(text));
+    }
+
+    function addLink(url, text) {
+      html.push('<a ');
+      if (angular.isDefined(target)) {
+        html.push('target="');
+        html.push(target);
+        html.push('" ');
+      }
+      html.push('href="');
+      html.push(url);
+      html.push('">');
+      addText(text);
+      html.push('</a>');
+    }
   };
-});
+}]);

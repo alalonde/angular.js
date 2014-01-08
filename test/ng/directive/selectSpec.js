@@ -405,6 +405,27 @@ describe('select', function() {
       expect(element).toEqualSelect(['A'], ['B']);
     });
 
+    it('should work with optgroups', function() {
+      compile('<select ng-model="selection" multiple>' +
+                '<optgroup label="group1">' +
+                  '<option>A</option>' +
+                  '<option>B</option>' +
+                '</optgroup>' +
+              '</select>');
+
+      expect(element).toEqualSelect('A', 'B');
+      expect(scope.selection).toBeUndefined();
+
+      scope.$apply(function() {
+        scope.selection = ['A'];
+      });
+      expect(element).toEqualSelect(['A'], 'B');
+
+      scope.$apply(function() {
+        scope.selection.push('B');
+      });
+      expect(element).toEqualSelect(['A'], ['B']);
+    });
 
     it('should require', function() {
       compile(
@@ -472,9 +493,8 @@ describe('select', function() {
 
     it('should throw when not formated "? for ? in ?"', function() {
       expect(function() {
-        compile('<select ng-model="selected" ng-options="i dont parse"></select>');
-      }).toThrow("Expected ngOptions in form of '_select_ (as _label_)? for (_key_,)?_value_ in" +
-                 " _collection_' but got 'i dont parse'.");
+          compile('<select ng-model="selected" ng-options="i dont parse"></select>');
+        }).toThrowMinErr('ngOptions', 'iexp', /Expected expression in form of/);
     });
 
 
@@ -491,6 +511,21 @@ describe('select', function() {
       expect(sortedHtml(options[0])).toEqual('<option value="0">A</option>');
       expect(sortedHtml(options[1])).toEqual('<option value="1">B</option>');
       expect(sortedHtml(options[2])).toEqual('<option value="2">C</option>');
+    });
+
+    it('should render zero as a valid display value', function() {
+      createSingleSelect();
+
+      scope.$apply(function() {
+        scope.values = [{name: 0}, {name: 1}, {name: 2}];
+        scope.selected = scope.values[0];
+      });
+
+      var options = element.find('option');
+      expect(options.length).toEqual(3);
+      expect(sortedHtml(options[0])).toEqual('<option value="0">0</option>');
+      expect(sortedHtml(options[1])).toEqual('<option value="1">1</option>');
+      expect(sortedHtml(options[2])).toEqual('<option value="2">2</option>');
     });
 
 
@@ -657,6 +692,21 @@ describe('select', function() {
       expect(jqLite(element.find('option')[0]).text()).toEqual('blank');
     });
 
+    it('should ignore $ and $$ properties', function() {
+      createSelect({
+        'ng-options': 'key as value for (key, value) in object',
+        'ng-model': 'selected'
+      });
+
+      scope.$apply(function() {
+        scope.object = {'regularProperty': 'visible', '$$private': 'invisible', '$property': 'invisible'};
+        scope.selected = 'regularProperty';
+      });
+
+      var options = element.find('option');
+      expect(options.length).toEqual(1);
+      expect(sortedHtml(options[0])).toEqual('<option value="regularProperty">visible</option>');
+    });
 
     describe('binding', function() {
 
@@ -714,6 +764,37 @@ describe('select', function() {
         });
 
         expect(element.val()).toEqual('0');
+      });
+
+
+      it('should bind to scope value and track/identify objects', function() {
+        createSelect({
+          'ng-model': 'selected',
+          'ng-options': 'item as item.name for item in values track by item.id'
+        });
+
+        scope.$apply(function() {
+          scope.values = [{id: 1, name: 'first'},
+                          {id: 2, name: 'second'},
+                          {id: 3, name: 'third'},
+                          {id: 4, name: 'forth'}];
+          scope.selected = {id: 2};
+        });
+
+        expect(element.val()).toEqual('2');
+
+        var first = jqLite(element.find('option')[0]);
+        expect(first.text()).toEqual('first');
+        expect(first.attr('value')).toEqual('1');
+        var forth = jqLite(element.find('option')[3]);
+        expect(forth.text()).toEqual('forth');
+        expect(forth.attr('value')).toEqual('4');
+
+        scope.$apply(function() {
+          scope.selected = scope.values[3];
+        });
+
+        expect(element.val()).toEqual('4');
       });
 
 
@@ -941,6 +1022,19 @@ describe('select', function() {
         expect(option.attr('id')).toBe('road-runner');
         expect(option.attr('custom-attr')).toBe('custom-attr');
       });
+
+      it('should be selected, if it is available and no other option is selected', function() {
+        // selectedIndex is used here because jqLite incorrectly reports element.val()
+        scope.$apply(function() {
+          scope.values = [{name: 'A'}];
+        });
+        createSingleSelect(true);
+        // ensure the first option (the blank option) is selected
+        expect(element[0].selectedIndex).toEqual(0);
+        scope.$digest();
+        // ensure the option has not changed following the digest
+        expect(element[0].selectedIndex).toEqual(0);
+      });
     });
 
 
@@ -1063,6 +1157,21 @@ describe('select', function() {
         browserTrigger(element, 'change');
         expect(scope.selected).toEqual(['0']);
       });
+
+      it('should deselect all options when model is emptied', function() {
+        createMultiSelect();
+         scope.$apply(function() {
+          scope.values = [{name: 'A'}, {name: 'B'}];
+          scope.selected = [scope.values[0]];
+        });
+        expect(element.find('option')[0].selected).toEqual(true);
+
+        scope.$apply(function() {
+          scope.selected.pop();
+        });
+
+        expect(element.find('option')[0].selected).toEqual(false);
+      })
     });
 
 
@@ -1104,6 +1213,55 @@ describe('select', function() {
         });
         expect(element).toBeValid();
       });
+
+
+      it('should treat an empty array as invalid when `multiple` attribute used', function() {
+        createSelect({
+          'ng-model': 'value',
+          'ng-options': 'item.name for item in values',
+          'ng-required': 'required',
+          'multiple': ''
+        }, true);
+
+        scope.$apply(function() {
+          scope.value = [];
+          scope.values = [{name: 'A', id: 1}, {name: 'B', id: 2}];
+          scope.required = true;
+        });
+        expect(element).toBeInvalid();
+
+        scope.$apply(function() {
+          // ngModelWatch does not set objectEquality flag
+          // array must be replaced in order to trigger $formatters
+          scope.value = [scope.values[0]];
+        });
+        expect(element).toBeValid();
+      });
+
+
+      it('should allow falsy values as values', function() {
+        createSelect({
+          'ng-model': 'value',
+          'ng-options': 'item.value as item.name for item in values',
+          'ng-required': 'required'
+        }, true);
+
+        scope.$apply(function() {
+          scope.values = [{name: 'True', value: true}, {name: 'False', value: false}];
+          scope.required = false;
+        });
+
+        element.val('1');
+        browserTrigger(element, 'change');
+        expect(element).toBeValid();
+        expect(scope.value).toBe(false);
+
+        scope.$apply(function() {
+          scope.required = true;
+        });
+        expect(element).toBeValid();
+        expect(scope.value).toBe(false);
+      });
     });
   });
 
@@ -1138,5 +1296,15 @@ describe('select', function() {
       expect(element.find('span').text()).toBe('success');
       dealoc(element);
     }));
+
+    it('should throw an exception if an option value interpolates to "hasOwnProperty"', function() {
+      scope.hasOwnPropertyOption = "hasOwnProperty";
+      expect(function() {
+        compile('<select ng-model="x">'+
+                  '<option>{{hasOwnPropertyOption}}</option>'+
+                '</select>');
+      }).toThrowMinErr('ng','badname', 'hasOwnProperty is not a valid "option value" name');
+    });
+
   });
 });

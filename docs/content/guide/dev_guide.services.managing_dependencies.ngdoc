@@ -39,8 +39,8 @@ function myModuleCfgFn($provide) {
 </pre>
 
 
-Here is an example of two services that depend on each other, as well as on other services that are
-provided by Angular's web framework:
+Here is an example of two services, one of which depends on the other and both
+of which depend on other services that are provided by the Angular framework:
 
 <pre>
 /**
@@ -50,7 +50,7 @@ provided by Angular's web framework:
  * @param {*} message Message to be logged.
  */
   function batchLogModule($provide){
-    $provide.factory('batchLog', ['$timeout', '$log', function($timeout, $log) {
+    $provide.factory('batchLog', ['$interval', '$log', function($interval, $log) {
       var messageQueue = [];
 
       function log() {
@@ -58,11 +58,10 @@ provided by Angular's web framework:
           $log('batchLog messages: ', messageQueue);
           messageQueue = [];
         }
-        $timeout(log, 50000);
       }
 
       // start periodic checking
-      log();
+      $interval(log, 50000);
 
       return function(message) {
         messageQueue.push(message);
@@ -82,16 +81,16 @@ provided by Angular's web framework:
     }]);
   }
 
-  // get the main service to kick of the application
+  // get the main service to kick off the application
   angular.injector([batchLogModule]).get('routeTemplateMonitor');
 </pre>
 
 Things to notice in this example:
 
-* The `batchLog` service depends on the built-in {@link api/ng.$timeout $timeout} and
+* The `batchLog` service depends on the built-in {@link api/ng.$interval $interval} and
 {@link api/ng.$log $log} services, and allows messages to be logged into the
 `console.log` in batches.
-* The `routeTemplateMonitor` service depends on the built-in {@link api/ng.$route
+* The `routeTemplateMonitor` service depends on the built-in {@link api/ngRoute.$route
 $route} service as well as our custom `batchLog` service.
 * Both of our services use the factory function signature and array notation for inject annotations
 to declare their dependencies. It is important that the order of the string identifiers in the array

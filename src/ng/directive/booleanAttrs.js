@@ -4,15 +4,18 @@
  * @ngdoc directive
  * @name ng.directive:ngHref
  * @restrict A
+ * @priority 99
  *
  * @description
- * Using Angular markup like {{hash}} in an href attribute makes
- * the page open to a wrong URL, if the user clicks that link before
- * angular has a chance to replace the {{hash}} with actual URL, the
- * link will be broken and will most likely return a 404 error.
+ * Using Angular markup like `{{hash}}` in an href attribute will
+ * make the link go to the wrong URL if the user clicks it before
+ * Angular has a chance to replace the `{{hash}}` markup with its
+ * value. Until Angular replaces the markup the link will be broken
+ * and will most likely return a 404 error.
+ *
  * The `ngHref` directive solves this problem.
  *
- * The buggy way to write it:
+ * The wrong way to write it:
  * <pre>
  * <a href="http://www.gravatar.com/avatar/{{hash}}"/>
  * </pre>
@@ -26,7 +29,8 @@
  * @param {template} ngHref any string which can contain `{{}}` markup.
  *
  * @example
- * This example uses `link` variable inside `href` attribute:
+ * This example shows various combinations of `href`, `ng-href` and `ng-click` attributes
+ * in links and their different behaviors:
     <doc:example>
       <doc:source>
         <input ng-model="value" /><br />
@@ -66,7 +70,7 @@
         it('should execute ng-click but not reload when no href but name specified', function() {
           element('#link-5').click();
           expect(input('value').val()).toEqual('5');
-          expect(element('#link-5').attr('href')).toBe('');
+          expect(element('#link-5').attr('href')).toBe(undefined);
         });
 
         it('should only change url when only ng-href', function() {
@@ -84,6 +88,7 @@
  * @ngdoc directive
  * @name ng.directive:ngSrc
  * @restrict A
+ * @priority 99
  *
  * @description
  * Using Angular markup like `{{hash}}` in a `src` attribute doesn't
@@ -107,8 +112,35 @@
 
 /**
  * @ngdoc directive
+ * @name ng.directive:ngSrcset
+ * @restrict A
+ * @priority 99
+ *
+ * @description
+ * Using Angular markup like `{{hash}}` in a `srcset` attribute doesn't
+ * work right: The browser will fetch from the URL with the literal
+ * text `{{hash}}` until Angular replaces the expression inside
+ * `{{hash}}`. The `ngSrcset` directive solves this problem.
+ *
+ * The buggy way to write it:
+ * <pre>
+ * <img srcset="http://www.gravatar.com/avatar/{{hash}} 2x"/>
+ * </pre>
+ *
+ * The correct way to write it:
+ * <pre>
+ * <img ng-srcset="http://www.gravatar.com/avatar/{{hash}} 2x"/>
+ * </pre>
+ *
+ * @element IMG
+ * @param {template} ngSrcset any string which can contain `{{}}` markup.
+ */
+
+/**
+ * @ngdoc directive
  * @name ng.directive:ngDisabled
  * @restrict A
+ * @priority 100
  *
  * @description
  *
@@ -119,10 +151,13 @@
  * </div>
  * </pre>
  *
- * The HTML specs do not require browsers to preserve the special attributes such as disabled.
- * (The presence of them means true and absence means false)
- * This prevents the angular compiler from correctly retrieving the binding expression.
- * To solve this problem, we introduce the `ngDisabled` directive.
+ * The HTML specification does not require browsers to preserve the values of boolean attributes
+ * such as disabled. (Their presence means true and their absence means false.)
+ * If we put an Angular interpolation expression into such an attribute then the
+ * binding information would be lost when the browser removes the attribute.
+ * The `ngDisabled` directive solves this problem for the `disabled` attribute.
+ * This complementary directive is not removed by the browser and so provides
+ * a permanent reliable place to store the binding information.
  *
  * @example
     <doc:example>
@@ -140,7 +175,8 @@
     </doc:example>
  *
  * @element INPUT
- * @param {expression} ngDisabled Angular expression that will be evaluated.
+ * @param {expression} ngDisabled If the {@link guide/expression expression} is truthy, 
+ *     then special attribute "disabled" will be set on the element
  */
 
 
@@ -148,12 +184,16 @@
  * @ngdoc directive
  * @name ng.directive:ngChecked
  * @restrict A
+ * @priority 100
  *
  * @description
- * The HTML specs do not require browsers to preserve the special attributes such as checked.
- * (The presence of them means true and absence means false)
- * This prevents the angular compiler from correctly retrieving the binding expression.
- * To solve this problem, we introduce the `ngChecked` directive.
+ * The HTML specification does not require browsers to preserve the values of boolean attributes
+ * such as checked. (Their presence means true and their absence means false.)
+ * If we put an Angular interpolation expression into such an attribute then the
+ * binding information would be lost when the browser removes the attribute.
+ * The `ngChecked` directive solves this problem for the `checked` attribute.
+ * This complementary directive is not removed by the browser and so provides
+ * a permanent reliable place to store the binding information.
  * @example
     <doc:example>
       <doc:source>
@@ -170,43 +210,8 @@
     </doc:example>
  *
  * @element INPUT
- * @param {expression} ngChecked Angular expression that will be evaluated.
- */
-
-
-/**
- * @ngdoc directive
- * @name ng.directive:ngMultiple
- * @restrict A
- *
- * @description
- * The HTML specs do not require browsers to preserve the special attributes such as multiple.
- * (The presence of them means true and absence means false)
- * This prevents the angular compiler from correctly retrieving the binding expression.
- * To solve this problem, we introduce the `ngMultiple` directive.
- *
- * @example
-     <doc:example>
-       <doc:source>
-         Check me check multiple: <input type="checkbox" ng-model="checked"><br/>
-         <select id="select" ng-multiple="checked">
-           <option>Misko</option>
-           <option>Igor</option>
-           <option>Vojta</option>
-           <option>Di</option>
-         </select>
-       </doc:source>
-       <doc:scenario>
-         it('should toggle multiple', function() {
-           expect(element('.doc-example-live #select').prop('multiple')).toBeFalsy();
-           input('checked').check();
-           expect(element('.doc-example-live #select').prop('multiple')).toBeTruthy();
-         });
-       </doc:scenario>
-     </doc:example>
- *
- * @element SELECT
- * @param {expression} ngMultiple Angular expression that will be evaluated.
+ * @param {expression} ngChecked If the {@link guide/expression expression} is truthy, 
+ *     then special attribute "checked" will be set on the element
  */
 
 
@@ -214,12 +219,16 @@
  * @ngdoc directive
  * @name ng.directive:ngReadonly
  * @restrict A
+ * @priority 100
  *
  * @description
- * The HTML specs do not require browsers to preserve the special attributes such as readonly.
- * (The presence of them means true and absence means false)
- * This prevents the angular compiler from correctly retrieving the binding expression.
- * To solve this problem, we introduce the `ngReadonly` directive.
+ * The HTML specification does not require browsers to preserve the values of boolean attributes
+ * such as readonly. (Their presence means true and their absence means false.)
+ * If we put an Angular interpolation expression into such an attribute then the
+ * binding information would be lost when the browser removes the attribute.
+ * The `ngReadonly` directive solves this problem for the `readonly` attribute.
+ * This complementary directive is not removed by the browser and so provides
+ * a permanent reliable place to store the binding information.
  * @example
     <doc:example>
       <doc:source>
@@ -236,7 +245,8 @@
     </doc:example>
  *
  * @element INPUT
- * @param {string} expression Angular expression that will be evaluated.
+ * @param {expression} ngReadonly If the {@link guide/expression expression} is truthy, 
+ *     then special attribute "readonly" will be set on the element
  */
 
 
@@ -244,12 +254,17 @@
  * @ngdoc directive
  * @name ng.directive:ngSelected
  * @restrict A
+ * @priority 100
  *
  * @description
- * The HTML specs do not require browsers to preserve the special attributes such as selected.
- * (The presence of them means true and absence means false)
- * This prevents the angular compiler from correctly retrieving the binding expression.
- * To solve this problem, we introduced the `ngSelected` directive.
+ * The HTML specification does not require browsers to preserve the values of boolean attributes
+ * such as selected. (Their presence means true and their absence means false.)
+ * If we put an Angular interpolation expression into such an attribute then the
+ * binding information would be lost when the browser removes the attribute.
+ * The `ngSelected` directive solves this problem for the `selected` atttribute.
+ * This complementary directive is not removed by the browser and so provides
+ * a permanent reliable place to store the binding information.
+ * 
  * @example
     <doc:example>
       <doc:source>
@@ -269,33 +284,70 @@
     </doc:example>
  *
  * @element OPTION
- * @param {string} expression Angular expression that will be evaluated.
+ * @param {expression} ngSelected If the {@link guide/expression expression} is truthy, 
+ *     then special attribute "selected" will be set on the element
  */
 
+/**
+ * @ngdoc directive
+ * @name ng.directive:ngOpen
+ * @restrict A
+ * @priority 100
+ *
+ * @description
+ * The HTML specification does not require browsers to preserve the values of boolean attributes
+ * such as open. (Their presence means true and their absence means false.)
+ * If we put an Angular interpolation expression into such an attribute then the
+ * binding information would be lost when the browser removes the attribute.
+ * The `ngOpen` directive solves this problem for the `open` attribute.
+ * This complementary directive is not removed by the browser and so provides
+ * a permanent reliable place to store the binding information.
+ * @example
+     <doc:example>
+       <doc:source>
+         Check me check multiple: <input type="checkbox" ng-model="open"><br/>
+         <details id="details" ng-open="open">
+            <summary>Show/Hide me</summary>
+         </details>
+       </doc:source>
+       <doc:scenario>
+         it('should toggle open', function() {
+           expect(element('#details').prop('open')).toBeFalsy();
+           input('open').check();
+           expect(element('#details').prop('open')).toBeTruthy();
+         });
+       </doc:scenario>
+     </doc:example>
+ *
+ * @element DETAILS
+ * @param {expression} ngOpen If the {@link guide/expression expression} is truthy, 
+ *     then special attribute "open" will be set on the element
+ */
 
 var ngAttributeAliasDirectives = {};
 
 
 // boolean attrs are evaluated
 forEach(BOOLEAN_ATTR, function(propName, attrName) {
+  // binding to multiple is not supported
+  if (propName == "multiple") return;
+
   var normalized = directiveNormalize('ng-' + attrName);
   ngAttributeAliasDirectives[normalized] = function() {
     return {
       priority: 100,
-      compile: function() {
-        return function(scope, element, attr) {
-          scope.$watch(attr[normalized], function ngBooleanAttrWatchAction(value) {
-            attr.$set(attrName, !!value);
-          });
-        };
+      link: function(scope, element, attr) {
+        scope.$watch(attr[normalized], function ngBooleanAttrWatchAction(value) {
+          attr.$set(attrName, !!value);
+        });
       }
     };
   };
 });
 
 
-// ng-src, ng-href are interpolated
-forEach(['src', 'href'], function(attrName) {
+// ng-src, ng-srcset, ng-href are interpolated
+forEach(['src', 'srcset', 'href'], function(attrName) {
   var normalized = directiveNormalize('ng-' + attrName);
   ngAttributeAliasDirectives[normalized] = function() {
     return {
@@ -309,8 +361,9 @@ forEach(['src', 'href'], function(attrName) {
 
           // on IE, if "ng:src" directive declaration is used and "src" attribute doesn't exist
           // then calling element.setAttribute('src', 'foo') doesn't do anything, so we need
-          // to set the property as well to achieve the desired effect
-          if (msie) element.prop(attrName, value);
+          // to set the property as well to achieve the desired effect.
+          // we use attr[attrName] value since $set can sanitize the url.
+          if (msie) element.prop(attrName, attr[attrName]);
         });
       }
     };

@@ -18,9 +18,9 @@ describe('ngdoc', function() {
   describe('Doc', function() {
     describe('metadata', function() {
 
-      it('should find keywords', function() {
+      it('should find keywords and filter ignored words', function() {
         expect(new Doc('\nHello: World! @ignore. $abc').keywords()).toEqual('$abc hello world');
-        expect(new Doc('The `ng:class-odd` and').keywords()).toEqual('and ng:class-odd the');
+        expect(new Doc('The `ng:class-odd` and').keywords()).toEqual('ng:class-odd');
       });
 
       it('should get property and methods', function() {
@@ -34,8 +34,8 @@ describe('ngdoc', function() {
         var d1 = new Doc('@name a.b.c').parse();
         var d2 = new Doc('@name a.b.ng-c').parse();
         var d3 = new Doc('@name some text: more text').parse();
-        expect(ngdoc.metadata([d1])[0].shortName).toEqual('c');
-        expect(ngdoc.metadata([d2])[0].shortName).toEqual('ng-c');
+        expect(ngdoc.metadata([d1])[0].shortName).toEqual('a.b.c');
+        expect(ngdoc.metadata([d2])[0].shortName).toEqual('a.b.ng-c');
         expect(ngdoc.metadata([d3])[0].shortName).toEqual('more text');
       });
 
@@ -55,12 +55,15 @@ describe('ngdoc', function() {
             '@name a\n' +
             '@param {*} a short\n' +
             '@param {Type} b med\n' +
-            '@param {Class=} [c=2] long\nline');
+            '@param {Class=} [c=2] long\nline\n' +
+            '@param {function(number, string=)} d fn with optional arguments');
         doc.parse();
         expect(doc.param).toEqual([
-           {name:'a', description:'<p>short</p>', type:'*', optional:false, 'default':undefined},
-           {name:'b', description:'<p>med</p>', type:'Type', optional:false, 'default':undefined},
-           {name:'c', description:'<p>long\nline</p>', type:'Class', optional:true, 'default':'2'}
+           {name:'a', description:'<div class="a-page"><p>short</p>\n</div>', type:'*', optional:false, 'default':undefined},
+           {name:'b', description:'<div class="a-page"><p>med</p>\n</div>', type:'Type', optional:false, 'default':undefined},
+           {name:'c', description:'<div class="a-page"><p>long\nline</p>\n</div>', type:'Class', optional:true, 'default':'2'},
+           {name:'d', description:'<div class="a-page"><p>fn with optional arguments</p>\n</div>',
+             type: 'function(number, string=)', optional: false, 'default':undefined}
          ]);
       });
 
@@ -69,7 +72,7 @@ describe('ngdoc', function() {
         doc.parse();
         expect(doc.returns).toEqual({
           type: 'Type',
-          description: '<p>text <em>bold</em>.</p>'
+          description: '<div class="a-page"><p>text <em>bold</em>.</p>\n</div>'
         });
       });
 
@@ -111,17 +114,8 @@ describe('ngdoc', function() {
         function property(name) {
           return function(obj) {return obj[name];};
         }
-        function noop() {}
-        function doc(type, name){
-          return {
-              id: name,
-              ngdoc: type,
-              keywords: noop
-          };
-        }
-
-        var dev_guide_overview = doc('overview', 'dev_guide.overview');
-        var dev_guide_bootstrap = doc('function', 'dev_guide.bootstrap');
+        var dev_guide_overview = new Doc({ngdoc:'overview', id:'dev_guide.overview', text: ''});
+        var dev_guide_bootstrap = new Doc({ngdoc:'function', id:'dev_guide.bootstrap', text: ''});
 
         it('should put angular.fn() in front of dev_guide.overview, etc', function() {
           expect(ngdoc.metadata([dev_guide_overview, dev_guide_bootstrap]).map(property('id')))
@@ -135,30 +129,49 @@ describe('ngdoc', function() {
     it('should not replace anything in <pre>, but escape the html escape the content', function() {
       expect(new Doc().markdown('bah x\n<pre>\n<b>angular</b>.k\n</pre>\n asdf x')).
         toEqual(
-            '<p>bah x\n' +
+            '<div class="docs-page"><p>bah x\n' +
             '<pre class="prettyprint linenums">\n' +
             '&lt;b&gt;angular&lt;/b&gt;.k\n' +
             '</pre>\n' +
-            ' asdf x</p>');
+            ' asdf x</p>\n</div>');
+    });
+
+    it('should wrap everything inside a container tag', function() {
+      var doc = new Doc('@name superman').parse();
+      var content = doc.markdown('hello');
+
+      expect(content).toMatch('<div class="superman-page"><p>hello</p>\n</div>');
+    });
+
+    it('should use the content before a colon as the name prefix for the className of the tag container', function() {
+      var doc = new Doc('@name super: man').parse();
+      var content = doc.markdown('hello');
+
+      expect(content).toMatch('<div class="super-page super-man-page"><p>hello</p>\n</div>');
     });
 
     it('should replace text between two <pre></pre> tags', function() {
       expect(new Doc().markdown('<pre>x</pre>\n# One\n<pre>b</pre>')).
-        toMatch('</pre>\n\n<h1>One</h1>\n\n<pre');
+        toMatch('</pre>\n<h1>One</h1>\n<pre');
+    });
+
+    it('should replace inline variable type hints', function() {
+      expect(new Doc().markdown('{@type string}')).
+        toMatch(/<a\s+.*?class=".*?type-hint type-hint-string.*?".*?>/);
     });
 
     it('should ignore nested doc widgets', function() {
       expect(new Doc().markdown(
-        'before<div class="tabbable">\n' +
+        'before\n<div class="tabbable">\n' +
           '<div class="tab-pane well" id="git-mac" ng:model="Git on Mac/Linux">' +
-          '\ngit bla bla\n</doc:tutorial-instruction>\n' +
-        '</doc:tutorial-instructions>')).toEqual(
+          '\ngit bla bla\n</div>\n' +
+        '</div>')).toEqual(
 
-        '<p>before<div class="tabbable">\n' +
+        '<div class="docs-page"><p>before</p>\n<div class="tabbable">\n' +
           '<div class="tab-pane well" id="git-mac" ng:model="Git on Mac/Linux">\n' +
           'git bla bla\n' +
-          '</doc:tutorial-instruction>\n' +
-        '</doc:tutorial-instructions></p>');
+          '</div>\n' +
+        '</div></div>');
       });
 
     it('should unindent text before processing based on the second line', function() {
@@ -168,10 +181,10 @@ describe('ngdoc', function() {
                                 '        fourth line\n\n' +
                                 '   fifth line')).
         toMatch('<p>first line\n' +
-                'second line</p>\n\n' +
+                'second line</p>\n' +
                 '<pre><code>third line\n' +
-                ' fourth line\n</code></pre>\n\n' +
-                '<p>fifth line</p>');
+                ' fourth line</code></pre>\n' +
+                '<p>fifth line</p>\n');
     });
 
     it('should unindent text before processing based on the first line', function() {
@@ -180,14 +193,36 @@ describe('ngdoc', function() {
                                 '       third line\n' +
                                 '        fourth line\n\n' +
                                 '   fifth line')).
-        toMatch('<p>first line</p>\n\n' +
+        toMatch('<div class="docs-page"><p>first line</p>\n' +
                 '<pre><code>second line\n' +
                 'third line\n' +
-                ' fourth line\n</code></pre>\n\n' +
-                '<p>fifth line</p>');
+                ' fourth line</code></pre>\n' +
+                '<p>fifth line</p>\n</div>');
     });
 
 
+    describe('inline annotations', function() {
+      it('should convert inline docs annotations into proper HTML', function() {
+        expect(new Doc().markdown(
+          "<pre>\n//!annotate supertext\n<br />\n</pre>"
+          )
+        ).toContain('data-popover data-content="supertext"')
+      });
+
+      it('should allow for a custom regular expression for matching', function() {
+        expect(new Doc().markdown(
+          "<pre>\n//!annotate=\"soon\" supertext\n<p>soon</p>\n</pre>"
+          )
+        ).toContain('data-popover data-content="supertext" data-title="Info">soon</div>')
+      });
+
+      it('should allow for a custom title to be set', function() {
+        expect(new Doc().markdown(
+          "<pre>\n//!annotate=\"soon\" coming soon|supertext\n<p>soon</p>\n</pre>"
+          )
+        ).toContain('data-popover data-content="supertext" data-title="coming soon">soon</div>')
+      });
+    });
   });
 
   describe('trim', function() {
@@ -218,33 +253,37 @@ describe('ngdoc', function() {
       expect(docs[0].events).toEqual([eventA, eventB]);
       expect(docs[0].properties).toEqual([propA, propB]);
     });
+  });
 
 
+  describe('checkBrokenLinks', function() {
+    var docs;
 
-    describe('links checking', function() {
-      var docs;
-      beforeEach(function() {
-        spyOn(console, 'log');
-        docs = [new Doc({section: 'api', id: 'fake.id1', links: ['non-existing-link']}),
-                new Doc({section: 'api', id: 'fake.id2'}),
-                new Doc({section: 'api', id: 'fake.id3'})];
-      });
+    beforeEach(function() {
+      spyOn(console, 'log');
+      docs = [new Doc({section: 'api', id: 'fake.id1', anchors: ['one']}),
+              new Doc({section: 'api', id: 'fake.id2'}),
+              new Doc({section: 'api', id: 'fake.id3'})];
+    });
 
-      it('should log warning when any link doesn\'t exist', function() {
-        ngdoc.merge(docs);
-        expect(console.log).toHaveBeenCalled();
-        expect(console.log.argsForCall[0][0]).toContain('WARNING:');
-      });
+    it('should log warning when a linked page does not exist', function() {
+      docs.push(new Doc({section: 'api', id: 'with-broken.link', links: ['non-existing-link']}))
+      ngdoc.checkBrokenLinks(docs);
+      expect(console.log).toHaveBeenCalled();
+      var warningMsg = console.log.argsForCall[0][0]
+      expect(warningMsg).toContain('WARNING:');
+      expect(warningMsg).toContain('non-existing-link');
+      expect(warningMsg).toContain('api/with-broken.link');
+    });
 
-      it('should say which link doesn\'t exist', function() {
-        ngdoc.merge(docs);
-        expect(console.log.argsForCall[0][0]).toContain('non-existing-link');
-      });
-
-      it('should say where is the non-existing link', function() {
-        ngdoc.merge(docs);
-        expect(console.log.argsForCall[0][0]).toContain('api/fake.id1');
-      });
+    it('should log warning when a linked anchor does not exist', function() {
+      docs.push(new Doc({section: 'api', id: 'with-broken.link', links: ['api/fake.id1#non-existing']}))
+      ngdoc.checkBrokenLinks(docs);
+      expect(console.log).toHaveBeenCalled();
+      var warningMsg = console.log.argsForCall[0][0]
+      expect(warningMsg).toContain('WARNING:');
+      expect(warningMsg).toContain('non-existing');
+      expect(warningMsg).toContain('api/with-broken.link');
     });
   });
 
@@ -260,7 +299,7 @@ describe('ngdoc', function() {
           name : 'number',
           optional: false,
           'default' : undefined,
-          description : '<p>Number \nto format.</p>' }]);
+          description : '<div class="a-page"><p>Number \nto format.</p>\n</div>' }]);
       });
 
       it('should parse with default and optional', function() {
@@ -271,7 +310,7 @@ describe('ngdoc', function() {
           name : 'fractionSize',
           optional: true,
           'default' : '2',
-          description : '<p>desc</p>' }]);
+          description : '<div class="a-page"><p>desc</p>\n</div>' }]);
       });
     });
 
@@ -281,8 +320,8 @@ describe('ngdoc', function() {
         doc.ngdoc = 'service';
         doc.parse();
         expect(doc.requires).toEqual([
-          {name:'$service', text:'<p>for \n<code>A</code></p>'},
-          {name:'$another', text:'<p>for <code>B</code></p>'}]);
+          {name:'$service', text:'<div class="a-page"><p>for \n<code>A</code></p>\n</div>'},
+          {name:'$another', text:'<div class="a-page"><p>for <code>B</code></p>\n</div>'}]);
         expect(doc.html()).toContain('<a href="api/ng.$service">$service</a>');
         expect(doc.html()).toContain('<a href="api/ng.$another">$another</a>');
         expect(doc.html()).toContain('<p>for \n<code>A</code></p>');
@@ -318,9 +357,9 @@ describe('ngdoc', function() {
       });
 
       it('should not parse @property without a type', function() {
-        var doc = new Doc("@property fake");
+        var doc = new Doc("@property fake", 'test.js', '44');
         expect(function() { doc.parse(); }).
-          toThrow(new Error("Not a valid 'property' format: fake"));
+          toThrow(new Error("Not a valid 'property' format: fake (found in: test.js:44)"));
       });
 
       it('should parse @property with type', function() {
@@ -334,7 +373,7 @@ describe('ngdoc', function() {
         var doc = new Doc("@name a\n@property {string} name desc rip tion");
         doc.parse();
         expect(doc.properties[0].name).toEqual('name');
-        expect(doc.properties[0].description).toEqual('<p>desc rip tion</p>');
+        expect(doc.properties[0].description).toEqual('<div class="a-page"><p>desc rip tion</p>\n</div>');
       });
 
       it('should parse @property with type and description both', function() {
@@ -342,7 +381,7 @@ describe('ngdoc', function() {
         doc.parse();
         expect(doc.properties[0].name).toEqual('name');
         expect(doc.properties[0].type).toEqual('bool');
-        expect(doc.properties[0].description).toEqual('<p>desc rip tion</p>');
+        expect(doc.properties[0].description).toEqual('<div class="a-page"><p>desc rip tion</p>\n</div>');
       });
 
     });
@@ -350,26 +389,41 @@ describe('ngdoc', function() {
     describe('@returns', function() {
       it('should not parse @returns without type', function() {
         var doc = new Doc("@returns lala");
-        expect(doc.parse).toThrow();
+        expect(function() { doc.parse(); }).
+            toThrow();
       });
+
+
+      it('should not parse @returns with invalid type', function() {
+        var doc = new Doc("@returns {xx}x} lala", 'test.js', 34);
+        expect(function() { doc.parse(); }).
+            toThrow(new Error("Not a valid 'returns' format: {xx}x} lala (found in: test.js:34)"));
+      });
+
 
       it('should parse @returns with type and description', function() {
         var doc = new Doc("@name a\n@returns {string} descrip tion");
         doc.parse();
-        expect(doc.returns).toEqual({type: 'string', description: '<p>descrip tion</p>'});
+        expect(doc.returns).toEqual({type: 'string', description: '<div class="a-page"><p>descrip tion</p>\n</div>'});
+      });
+
+      it('should parse @returns with complex type and description', function() {
+        var doc = new Doc("@name a\n@returns {function(string, number=)} description");
+        doc.parse();
+        expect(doc.returns).toEqual({type: 'function(string, number=)', description: '<div class="a-page"><p>description</p>\n</div>'});
       });
 
       it('should transform description of @returns with markdown', function() {
         var doc = new Doc("@name a\n@returns {string} descrip *tion*");
         doc.parse();
-        expect(doc.returns).toEqual({type: 'string', description: '<p>descrip <em>tion</em></p>'});
+        expect(doc.returns).toEqual({type: 'string', description: '<div class="a-page"><p>descrip <em>tion</em></p>\n</div>'});
       });
 
       it('should support multiline content', function() {
         var doc = new Doc("@name a\n@returns {string} description\n new line\n another line");
         doc.parse();
         expect(doc.returns).
-          toEqual({type: 'string', description: '<p>description\nnew line\nanother line</p>'});
+          toEqual({type: 'string', description: '<div class="a-page"><p>description\nnew line\nanother line</p>\n</div>'});
       });
     });
 
@@ -378,19 +432,18 @@ describe('ngdoc', function() {
         var doc = new Doc("@name a\n@description <pre><b>abc</b></pre>");
         doc.parse();
         expect(doc.description).
-          toBe('<pre class="prettyprint linenums">&lt;b&gt;abc&lt;/b&gt;</pre>');
+          toBe('<div class="a-page"><pre class="prettyprint linenums">&lt;b&gt;abc&lt;/b&gt;</pre>\n</div>');
       });
 
       it('should support multiple pre blocks', function() {
         var doc = new Doc("@name a\n@description foo \n<pre>abc</pre>\n#bah\nfoo \n<pre>cba</pre>");
         doc.parse();
         expect(doc.description).
-          toBe('<p>foo \n' +
-               '<pre class="prettyprint linenums">abc</pre>\n\n' +
-               '<h1>bah</h1>\n\n' +
+          toBe('<div class="a-page"><p>foo \n' +
+               '<pre class="prettyprint linenums">abc</pre>\n' +
+               '<h1>bah</h1>\n' +
                '<p>foo \n' +
-               '<pre class="prettyprint linenums">cba</pre>');
-
+               '<pre class="prettyprint linenums">cba</pre>\n</div>');
       });
 
       it('should support nested @link annotations with or without description', function() {
@@ -432,7 +485,7 @@ describe('ngdoc', function() {
       it('should not remove {{}}', function() {
         var doc = new Doc('@name a\n@example text {{ abc }}');
         doc.parse();
-        expect(doc.example).toEqual('<p>text {{ abc }}</p>');
+        expect(doc.example).toEqual('<div class="a-page"><p>text {{ abc }}</p>\n</div>');
       });
     });
 
@@ -451,10 +504,28 @@ describe('ngdoc', function() {
         doc.parse();
         expect(doc.html()).toContain('<h3>Method\'s <code>this</code></h3>\n' +
             '<div>' +
-            '<p>I am self.</p>' +
+            '<div class="a-page">' +
+            '<p>I am self.</p>\n' +
+            '</div>' +
             '</div>\n');
         expect(doc.html()).toContain('<h3>Method\'s <code>this</code></h3>\n' +
-            '<div><p>I am self.</p></div>');
+            '<div><div class="a-page"><p>I am self.</p>\n</div></div>');
+      });
+    });
+
+    describe('@animations', function() {
+      it('should render @this', function() {
+        var doc = new Doc('@name a\n@animations\nenter - Add text\nleave - Remove text\n');
+        doc.ngdoc = 'filter';
+        doc.parse();
+        expect(doc.html()).toContain(
+            '<h3 id="usage_animations">Animations</h3>\n' +
+            '<div class="animations">' +
+              '<ul>' +
+                '<li>enter - Add text</li>' +
+                '<li>leave - Remove text</li>' +
+              '</ul>' +
+            '</div>');
       });
     });
   });
@@ -465,7 +536,7 @@ describe('ngdoc', function() {
         var doc = new Doc('@ngdoc overview\n@name angular\n@description\n#heading\ntext');
         doc.parse();
         expect(doc.html()).toContain('text');
-        expect(doc.html()).toContain('<h2>heading</h2>');
+        expect(doc.html()).toContain('<h2 id="heading">heading</h2>');
         expect(doc.html()).not.toContain('Description');
       });
     });
@@ -477,7 +548,7 @@ describe('ngdoc', function() {
           ngdoc:'function',
           name:'some.name',
           param: [
-            {name:'a', optional: true},
+            {name:'a', type: 'string', optional: true},
             {name:'b', type: 'someType', optional: true, 'default': '"xxx"'},
             {name:'c', type: 'string', description: 'param desc'}
           ],
@@ -486,7 +557,7 @@ describe('ngdoc', function() {
         doc.html_usage_function(dom);
         expect(dom).toContain('name([a][, b], c)'); //TODO(i) the comma position here is lame
         expect(dom).toContain('param desc');
-        expect(dom).toContain('(optional="xxx")');
+        expect(dom).toContain('(optional)');
         expect(dom).toContain('return desc');
       });
     });
@@ -497,8 +568,8 @@ describe('ngdoc', function() {
           ngdoc:'formatter',
           shortName:'myFilter',
           param: [
-            {name:'a'},
-            {name:'b'}
+            {name:'a', type:'string'},
+            {name:'b', type:'string'}
           ]
         });
         doc.html_usage_filter(dom);
@@ -512,6 +583,7 @@ describe('ngdoc', function() {
         var doc = new Doc({
           ngdoc:'property',
           name:'myProp',
+          type:'string',
           returns:{type: 'type', description: 'description'}
         });
         doc.html_usage_property(dom);

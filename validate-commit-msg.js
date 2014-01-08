@@ -12,8 +12,8 @@ var fs = require('fs');
 var util = require('util');
 
 
-var MAX_LENGTH = 70;
-var PATTERN = /^(\w*)(\(([\w\$\.]*)\))?\: (.*)$/;
+var MAX_LENGTH = 100;
+var PATTERN = /^(?:fixup!\s*)?(\w*)(\(([\w\$\.\-\*/]*)\))?\: (.*)$/;
 var IGNORED = /^WIP\:/;
 var TYPES = {
   feat: true,
@@ -21,8 +21,10 @@ var TYPES = {
   docs: true,
   style: true,
   refactor: true,
+  perf: true,
   test: true,
-  chore: true
+  chore: true,
+  revert: true
 };
 
 
@@ -50,7 +52,7 @@ var validateMessage = function(message) {
   var match = PATTERN.exec(message);
 
   if (!match) {
-    error('does not match "<type>(<scope>): <subject>" !');
+    error('does not match "<type>(<scope>): <subject>" ! was: ' + message);
     return false;
   }
 

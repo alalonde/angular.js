@@ -5,11 +5,19 @@ var docsApp = {
   filter: {}
 };
 
-docsApp.controller.DocsVersionsCtrl = ['$scope', '$window', 'NG_VERSIONS', 'NG_VERSION', function($scope, $window, NG_VERSIONS, NG_VERSION) {
+docsApp.controller.DocsVersionsCtrl = ['$scope', '$rootScope', '$window', 'NG_VERSIONS', 'NG_VERSION', function($scope, $rootScope, $window, NG_VERSIONS, NG_VERSION) {
   $scope.docs_versions = NG_VERSIONS;
   $scope.docs_version  = NG_VERSIONS[0];
+
   $scope.jumpToDocsVersion = function(version) {
-    $window.location = version.url;
+    var currentPagePath = '';
+
+    // preserve URL path when switching between doc versions
+    if (angular.isObject($rootScope.currentPage) && $rootScope.currentPage.section && $rootScope.currentPage.id) {
+      currentPagePath = '/' + $rootScope.currentPage.section + '/' + $rootScope.currentPage.id;
+    }
+
+    $window.location = version.url + currentPagePath;
   };
 }];
 
@@ -137,11 +145,19 @@ docsApp.directive.docsSearchInput = ['$document',function($document) {
     var ESCAPE_KEY_KEYCODE = 27,
         FORWARD_SLASH_KEYCODE = 191;
     angular.element($document[0].body).bind('keydown', function(event) {
-      var input = element[0];
-      if(event.keyCode == FORWARD_SLASH_KEYCODE && document.activeElement != input) {
-        event.stopPropagation();
-        event.preventDefault();
-        input.focus();
+      if(event.keyCode == FORWARD_SLASH_KEYCODE && document.activeElement) {
+        var activeElement = document.activeElement;
+        var activeTagName = activeElement.nodeName.toLowerCase();
+        var hasInputFocus = activeTagName == 'input'  || activeTagName == 'select' ||
+                            activeTagName == 'option' || activeTagName == 'textarea' ||
+                            activeElement.hasAttribute('contenteditable');
+        if(!hasInputFocus) {
+          event.stopPropagation();
+          event.preventDefault();
+
+          var input = element[0];
+          input.focus();
+        }
       }
     });
 
@@ -645,7 +661,7 @@ docsApp.serviceFactory.sections = ['NG_PAGES', function sections(NG_PAGES) {
 }];
 
 
-docsApp.controller.DocsController = function($scope, $location, $window, $cookies, sections) {
+docsApp.controller.DocsController = function($scope, $rootScope, $location, $window, $cookies, sections) {
   $scope.fold = function(url) {
     if(url) {
       $scope.docs_fold = '/notes/' + url;
@@ -736,9 +752,9 @@ docsApp.controller.DocsController = function($scope, $location, $window, $cookie
         sectionName = SECTION_NAME[sectionId] || sectionId,
         page = sections.getPage(sectionId, partialId);
 
-      $scope.currentPage = sections.getPage(sectionId, partialId);
+      $rootScope.currentPage = sections.getPage(sectionId, partialId);
 
-      if (!$scope.currentPage) {
+      if (!$rootScope.currentPage) {
         $scope.partialTitle = 'Error: Page Not Found!';
       }
 
